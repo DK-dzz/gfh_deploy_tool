@@ -20,6 +20,8 @@ Deploy APP  : app=backendapi-test-SNAPSHOT or app=walletservicesapi-test-SNAPSHO
 
 
 ### example:
-ansible-playbook -i hosts gfh_deploy_tool.yaml  --extra-vars "date=2019031118  app=backendapi-test-SNAPSHOT"
+ansible-playbook -i hosts gfh_deploy_tool.yaml --extra-vars "backup=20190312  app=backendapi-test-SNAPSHOT  jarport=9000  env=test/gfh-weixin project=api"
+ansible-playbook -i hosts gfh_deploy_tool.yaml --extra-vars "backup=20190312  app=ali-api-test  jarport=9070  env=test/gfh-ali project=api"
+
 
 

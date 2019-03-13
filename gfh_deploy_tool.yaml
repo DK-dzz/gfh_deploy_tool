@@ -1,67 +1,55 @@
 ---
-- hosts: app04
-  #remote_user: gfhadmin
+- hosts: app01
+  #remote_user: user
   #gather_facts: true
-  ## http://gitlab.it.zkungfu.com/zhenzhang.du/gfh_deploy_tool.git ##
+
+
+
   vars:
     - app_user:  'gfhadmin'
-    - app_name: "{{ app }}"
-    - app_dir: "/app/www/test/gfh-weixin"
-    - app_script: "{{ app }}.sh"
-    - app_jar: "{{ app }}.jar"
-    - app_project: 'api'
-    - app_conf: "{{ app }}.properties"
-    - app_port: '9000'
+    - app_name: "{{ app }}"       
+    - app_project: "{{ project }}" 
+    - app_env: "{{ env }}"       
+    - app_dir: "/app/www/{{ app_env }}"
+    - app_script: "{{ app_name }}.sh"
+    - app_jar: "{{ app_name }}.jar"
+    - app_conf: "{{ app_name }}.properties"
+    - app_port: "{{ jarport }}"
     - backup_dir: '/app/backup'
-    - date: "{{ date }}"
-    - ftp_dir: '/test/gfh-weixin'    
-    - Upload_file: "/tmp/"
-
-    - ansible_server: "172.16.168.158"  
-    - ftp_server: "172.16.168.180"  
-    - ftp_username: "zhenzhang.du"
-    - ftp_password: "pwd"
-
+    - backup_name: "{{ backup }}"
+    - ftp_dir: "/{{ app_env }}"
+    - Upload_dir: "/tmp"
+    - ansible_server: "172.1.1.2"  
+    - ftp_server: "172.1.1.1"  
+    - ftp_username: "xxx"
+    - ftp_password: "xxx"
       
   tasks:    
-    - name: "Create Backup Dir : {{ backup_dir }}/{{ app_project }}/{{ date }}"
-      file: path={{ backup_dir }}/{{ app_project }}/{{ date }} state=directory group={{ app_user }} owner={{ app_user }} mode=750 
-
-    - name: "Create Project dir : {{ app_dir }}/{{ app_project }} "
-      file: path={{ app_dir }}/{{ app_project }} state=directory group={{ app_user }} owner={{ app_user }} mode=0750 
-
-    - name: "Deploy Backup : {{ app_dir }}/{{ app_project }}/ {{ app_jar }} {{ app_conf }} {{ app_script }}"
-      shell: cp -rp {{ app_dir }}/{{ app_project }}/{{ item }}   {{ backup_dir }}/{{ app_project }}/{{ date }}/
-      with_items:
-        - "{{ app_jar }}"
-        - "{{ app_conf }}"
-        - "{{ app_script }}"
-
-    - name: "Deploy Download MD5sum From Ftp {{ ftp_server }}{{ ftp_dir }}/{{ app_project }}/{{ app_jar }}.txt"
+    - name: "Deploy: Download MD5sum From Ftp {{ ftp_server }}{{ ftp_dir }}/{{ app_project }}/{{ app_jar }}.txt"
       get_url:
         url: "ftp://{{ ftp_username }}:{{ ftp_password }}@{{ ftp_server }}{{ ftp_dir }}/{{ app_project }}/{{ app_jar }}.txt"
         backup: yes
-        dest: "{{ Upload_file }}"
+        dest: "{{ Upload_dir }}"
         mode: 0640
         group: "{{ app_user }}"
         owner: "{{ app_user }}"
         timeout: 60
       delegate_to: "{{ ansible_server }}"
 
-    - name: "Get The Checksum value of {{ app_jar }}"
-      shell: "cat {{ Upload_file }}/{{ app_jar }}.txt"
+    - name: "Deploy: Get The Checksum value of {{ app_jar }}"
+      shell: "cat {{ Upload_dir }}/{{ app_jar }}.txt"
       register: checksum_results
       delegate_to: "{{ ansible_server }}"
 
-    - name: "Diplay checksum_results of {{ app_jar }}"
+    - name: "Deploy: Diplay checksum_results of {{ app_jar }}"
       debug: var=checksum_results.stdout
       delegate_to: "{{ ansible_server }}"
 
-    - name: "Deploy Download Jar From Ftp {{ ftp_server }}{{ ftp_dir }}/{{ app_project }}/{{ app_jar }} "
+    - name: "Deploy: Download Jar From Ftp {{ ftp_server }}{{ ftp_dir }}/{{ app_project }}/{{ app_jar }} "
       get_url:
         url: "ftp://{{ ftp_username }}:{{ ftp_password }}@{{ ftp_server }}{{ ftp_dir }}/{{ app_project }}/{{ app_jar }}"
         backup: yes
-        dest: "{{ Upload_file }}"
+        dest: "{{ Upload_dir }}"
         mode: 0640
         group: "{{ app_user }}"
         owner: "{{ app_user }}"
@@ -69,11 +57,11 @@
         timeout: 60
       delegate_to: "{{ ansible_server }}"
 
-    - name: "Deploy Download Jar From Ftp {{ ftp_server }}{{ ftp_dir }}/{{ app_project }}/{{ app_conf }} "
+    - name: "Deploy: Download script and conf From Ftp {{ ftp_server }}{{ ftp_dir }}/{{ app_project }}/{{ app_conf }} "
       get_url:
         url: "ftp://{{ ftp_username }}:{{ ftp_password }}@{{ ftp_server }}{{ ftp_dir }}/{{ app_project }}/{{ item }}"
         backup: yes
-        dest: "{{ Upload_file }}"
+        dest: "{{ Upload_dir }}"
         mode: 0640
         group: "{{ app_user }}"
         owner: "{{ app_user }}"
@@ -83,23 +71,46 @@
         - "{{ app_conf }}"
       delegate_to: "{{ ansible_server }}"
 
-    - name: "Deploy Stop APP By : kill {{ app_jar }}"
-      shell: ps aux | grep {{ app_jar }} | grep -v grep| awk '{print $2}' |xargs kill -9
-      ignore_errors: yes
+    - name: "Deploy Create Backup Dir : {{ backup_dir }}/{{ app_project }}/{{ backup_name }}"
+      file: path={{ backup_dir }}/{{ app_project }}/{{ backup_name }} state=directory group={{ app_user }} owner={{ app_user }} mode=750 
 
-    - name: "Deploy Upload : {{ app_jar }} {{ app_conf }} {{ app_script }} to {{ app_dir }}/{{ app_project }}/ "
-      copy: src={{ Upload_file }}/{{ item }} dest={{ app_dir }}/{{ app_project }}/ group={{ app_user }} owner={{ app_user }} mode=640 
+    - name: "Deploy: Create Project dir : {{ app_dir }}/{{ app_project }} "
+      file: path={{ app_dir }}/{{ app_project }} state=directory group={{ app_user }} owner={{ app_user }} mode=0750 
+
+    - name: "Deploy Backup : {{ app_dir }}/{{ app_project }}/ {{ app_jar }} {{ app_conf }} {{ app_script }}"
+      shell: cp -rp {{ app_dir }}/{{ app_project }}/{{ item }}   {{ backup_dir }}/{{ app_project }}/{{ backup_name }}/
       with_items:
         - "{{ app_jar }}"
         - "{{ app_conf }}"
         - "{{ app_script }}"
+
+    - name: "Deploy Stop : APP {{ app_jar }}"
+      shell: "ps aux | grep {{ app_jar }} | grep -v grep| awk '{print $2}' |xargs kill -9"
+      ignore_errors: yes
+
+    - name: "Deploy Upload : {{ app_jar }} {{ app_conf }} {{ app_script }} to {{ app_dir }}/{{ app_project }}/ "
+      copy: src={{ Upload_dir }}/{{ item }} dest={{ app_dir }}/{{ app_project }}/ group={{ app_user }} owner={{ app_user }} mode=640 
+      with_items:
+        - "{{ app_jar }}"
+        - "{{ app_conf }}"
+        - "{{ app_script }}"
+
+    - name: "Deploy: Set {{ app_dir }}/{{ app_project }}/{{ app_script }} owner and mode"
+      file: path={{ app_dir }}/{{ app_project }}/{{ app_script }} group={{ app_user }} owner={{ app_user }} mode=0750
  
-    - name: "Deploy ReStart APP By Script {{ app_script }}"
+    - name: "Deploy Restart : Run Script {{ app_script }}"
       shell: "sh {{ app_dir }}/{{ app_project }}/{{ app_script }} restart"
 
-    - name: "Wait for instance to respond to {{ app_port }} Port"
+    - name: "Deploy Health Check : Wait for instance to respond to {{ app_port }} Port"
       wait_for:
         port: "{{ app_port }}"
         state: started
         timeout: 120
+
+    - name: "Deploy Health Check : Find The {{ app_jar }} Process "
+      shell: "ps aux| grep {{ app_jar }} |grep -v grep"
+      register: process
+
+    - name: "Deploy Health Check : Show The {{ app_jar }} Process "
+      debug: var=process.stdout verbosity=0
 
